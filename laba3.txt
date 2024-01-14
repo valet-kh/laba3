@@ -1,0 +1,248 @@
+0. Отображение оценок
+
+SELECT Students.fio AS Студент, 
+   Disciplines.name AS Дисциплина, 
+       Teachers.fio AS Преподаватель, 
+        Grades.date AS Дата, 
+       Grades.grade AS Оценка
+FROM Grades
+JOIN Students
+  ON Grades.student = Students.id
+JOIN Subjects
+  ON Grades.subject = Subjects.id
+JOIN Disciplines
+  ON Subjects.discipline = Disciplines.id
+JOIN Teachers
+  ON Subjects.teacher = Teachers.id
+
+########################################################
+
+0. Отображение активности
+
+SELECT      Students.fio AS  Студент, 
+           Groups.number AS 'Номер группы', 
+Activity.sem_start_group AS 'Семестр зачисления', 
+  Activity.sem_end_group AS 'Семестр отчтсления'
+FROM Activity
+JOIN Students
+  ON Activity.id_student = Students.id
+JOIN Groups
+  ON Activity.id_group = Groups.id
+
+########################################################
+
+0. Отображение предметов
+
+SELECT     Groups.number AS 'Номер группы', 
+        Disciplines.name AS  Дисциплина, 
+            Subjects.sem AS  Семестр, 
+     Subjects.grade_type AS 'Тип оценки',
+            Teachers.fio AS  Преподаватель
+FROM Subjects
+JOIN Groups
+  ON Subjects.group_id = Groups.id
+JOIN Disciplines
+  ON Subjects.discipline = Disciplines.id
+JOIN Teachers
+  ON Subjects.teacher = Teachers.id
+
+########################################################
+
+1.1 Осуществлять добавление/удаление дисциплин. 
+
+INSERT INTO Disciplines (name)
+VALUES ('Новая дисциплина 1')
+
+DELETE 
+FROM Disciplines
+WHERE name = 'Новая дисциплина 1'
+
+//////////////////
+
+1.2 Осуществлять добавление/удаление предметов.
+
+INSERT INTO Subjects (group_id, discipline, sem, grade_type, teacher)
+VALUES (10, 3, 1, 'экзамен', 2)
+
+DELETE 
+FROM Subjects
+WHERE group_id = 10 AND discipline = 3 AND sem = 1
+
+
+//////////////////
+
+1.3 Осуществлять добавление/удаление преподавателей.
+
+INSERT INTO Teachers (fio, gender, has_degree, dob)
+VALUES ('Новый преподаватель 1', 'male', 0, '2000-01-01')
+
+DELETE 
+FROM Teachers
+WHERE fio = 'Новый преподаватель 1'
+
+//////////////////
+
+1.3 Осуществлять добавление/удаление студентов.
+
+
+
+INSERT INTO Students (number_recordbook, fio, gender, dob)
+VALUES (100, 'Новый студент 1', 'male', '2005-01-01')
+
+DELETE 
+FROM Students
+WHERE fio = 'Новый студент 1'
+
+########################################################
+
+2.1 Поступление в группу
+
+INSERT INTO Activity (id_student, id_group, sem_start_group)
+VALUES (1, 1, 1)
+
+//////////////////
+
+2.2 Перевод между группами
+
+INSERT INTO Activity (id_student, id_group, sem_start_group)
+VALUES (1, 2, 2)
+
+//////////////////
+
+2.3 Отчисление из группы
+
+UPDATE Activity
+SET sem_end_group = 3
+WHERE id_student = 1 and sem_end_group is NULL
+
+########################################################
+
+3. Получить сводную статистику – число преподавателей и/или студентов каждого пола, попадающих в данную возрастную группу.
+
+SELECT Пол, COUNT(*) AS 'Количество попавших в выборку' 
+FROM
+(SELECT 'Преподаватель'               as Статус,
+       fio                           as ФИО,
+       gender                        as Пол,
+       ((date() - dob) - IIF (STRFTIME('%m', date('now')) - STRFTIME('%m', "2005-01-18") < 0 OR
+                             (STRFTIME('%m', date('now')) - STRFTIME('%m', "2005-01-18") == 0 and 
+                              STRFTIME('%d', date('now')) - STRFTIME('%d', "2005-01-18") < 0), 1, 0))
+                                     as Возраст   
+  FROM Teachers
+ WHERE Возраст BETWEEN 19 AND 50
+UNION
+SELECT 'Студент'                     as Статус,
+       fio                           as ФИО,
+       gender                        as Пол,
+       ((date() - dob) - IIF (STRFTIME('%m', date('now')) - STRFTIME('%m', "2005-01-18") < 0 OR
+                             (STRFTIME('%m', date('now')) - STRFTIME('%m', "2005-01-18") == 0 and 
+                              STRFTIME('%d', date('now')) - STRFTIME('%d', "2005-01-18") < 0), 1, 0))
+                                     as Возраст
+  FROM Students
+ WHERE Возраст BETWEEN 19 AND 50)
+ GROUP BY Пол
+
+########################################################
+
+4. Получить список преподавателей и студентов, дни рождения которых попадают в заданный период времени.
+
+SELECT 'Преподаватель'               as Статус,
+       fio                           as ФИО,
+       gender                        as Пол,
+       dob                           as 'Дата рождения'  
+  FROM Teachers
+ WHERE dob > date('1990-01-01') AND 'Дата рождения' < date('2010-01-01') UNION
+SELECT 'Студент'                     as Статус,
+       fio                           as ФИО,
+       gender                        as Пол,
+       dob                           as 'Дата рождения' 
+  FROM Students
+ WHERE dob > date('1990-01-01') AND 'Дата рождения' < date('2010-01-01')
+
+########################################################
+
+5. Получить список преподавателей, ведущих занятия у каждой отдельной группы в заданный период времени.
+
+SELECT Groups.number AS Группа, 
+        Subjects.sem AS Семестр, 
+        Teachers.fio AS Преподаватель
+  FROM Groups
+  JOIN Subjects
+    ON Subjects.group_id = Groups.id
+  JOIN Teachers
+    ON Subjects.teacher = Teachers.id  
+ WHERE sem BETWEEN 2 AND 4
+
+########################################################
+
+6.1 Получить список студентов, учащихся/учившихся в указанной группе в течение заданного периода времени.
+
+SELECT           fio AS Студент, 
+       Groups.number AS Группа, 
+     sem_start_group AS 'Начало обучение', 
+       sem_end_group AS 'Конец обучения'
+  FROM Activity
+  JOIN Students
+    ON Activity.id_student = Students.id
+  JOIN Groups
+    ON Activity.id_group = Groups.id
+ WHERE Groups.number = 'Б9120.02.03.01' AND
+      (Activity.sem_start_group BETWEEN 2 AND 4 OR 
+       Activity.sem_end_group BETWEEN 2 AND 4)
+
+########################################################
+
+7. Получить список групп, в которых учился указанный студент (с привязкой ко времени).
+
+SELECT Groups.number AS Группа, 
+     sem_start_group AS 'Начало обучение', 
+       sem_end_group AS 'Конец обучения'
+  FROM Activity
+  JOIN Students
+    ON Activity.id_student = Students.id
+  JOIN Groups
+    ON Activity.id_group = Groups.id
+ WHERE Activity.id_student = 1
+
+########################################################
+
+8. Сохранять результаты проводимых зачётов/экзаменов с привязкой к конкретному предмету.
+
+INSERT INTO Grades
+VALUES (1, 1, '2023-01-01', 5)
+
+########################################################
+
+9. Получить список оценок указанного студента по каждой отдельной дисциплине
+
+SELECT Disciplines.name AS Дисциплина,
+           Grades.grade AS Оценка,
+           Grades.date  AS Дата
+  FROM Grades
+  JOIN Students
+    ON Grades.student = Students.id
+  JOIN Subjects
+    ON Grades.subject = Subjects.id
+  JOIN Disciplines
+    ON Subjects.discipline = Disciplines.id
+ WHERE Students.fio = 'Каменев Александр'
+
+########################################################
+
+10. Получить сводную статистику (средний балл) группы по указанной дисциплине.
+
+SELECT ROUND(AVG(grade), 2) AS 'Средний балл'
+  FROM Grades
+  JOIN Subjects
+    ON Grades.subject = Subjects.id
+  JOIN (SELECT id_student, id_group
+        FROM Activity
+        WHERE sem_end_group is NULL) AS A
+    ON Grades.student = A.id_student
+  JOIN Groups
+    ON A.id_group = Groups.id
+  JOIN Disciplines
+    ON Subjects.discipline = Disciplines.id
+ WHERE Groups.number = 'Б9120.02.03.01' and Disciplines.name = 'Математическая логика'
+ GROUP BY Disciplines.name
+
